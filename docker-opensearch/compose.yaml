@@ -1,0 +1,62 @@
+services:
+  opensearch-node1:
+    image: opensearchproject/opensearch:2.14.0
+    container_name: opensearch-node1
+    environment:
+      cluster.name: opensearch-cluster
+      node.name: opensearch-node1
+      discovery.seed_hosts: opensearch-node1,opensearch-node2
+      cluster.initial_cluster_manager_nodes: opensearch-node1,opensearch-node2
+      bootstrap.memory_lock: true
+      plugins.ml_commons.allow_registering_model_via_url: true
+      plugins.security.ssl.http.pemkey_filepath: certificates/os1/os1.key
+      plugins.security.ssl.http.pemcert_filepath: certificates/os1/os1.pem
+      plugins.security.ssl.http.enabled: true
+      plugins.security.ssl.http.pemtrustedcas_filepath: certificates/ca/ca.pem
+      plugins.security.allow_unsafe_democertificates: true      
+      OPENSEARCH_INITIAL_ADMIN_PASSWORD: Alfresco.org.2024
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - ./certs:/usr/share/opensearch/config/certificates:ro        
+    ports:
+      - 9200:9200
+
+  opensearch-node2:
+    image: opensearchproject/opensearch:2.14.0
+    container_name: opensearch-node2
+    environment:
+      cluster.name: opensearch-cluster
+      node.name: opensearch-node2
+      discovery.seed_hosts: opensearch-node1,opensearch-node2
+      cluster.initial_cluster_manager_nodes: opensearch-node1,opensearch-node2
+      bootstrap.memory_lock: true
+      plugins.ml_commons.allow_registering_model_via_url: true
+      plugins.security.ssl.http.pemkey_filepath: certificates/os2/os2.key
+      plugins.security.ssl.http.pemcert_filepath: certificates/os2/os2.pem
+      plugins.security.ssl.http.enabled: true
+      plugins.security.ssl.http.pemtrustedcas_filepath: certificates/ca/ca.pem
+      plugins.security.allow_unsafe_democertificates: true
+      OPENSEARCH_INITIAL_ADMIN_PASSWORD: Alfresco.org.2024
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - ./certs:/usr/share/opensearch/config/certificates:ro                
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:2.14.0
+    container_name: opensearch-dashboards
+    ports:
+      - 5601:5601
+    environment:
+      OPENSEARCH_HOSTS: '["https://opensearch-node1:9200","https://opensearch-node2:9200"]'
