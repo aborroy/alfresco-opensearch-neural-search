@@ -2,11 +2,11 @@
 
 This project integrates Alfresco with the neural search capabilities of OpenSearch. A Java Spring Boot service handles kNN indexing.
 
-Docker Images from [quay.io](https://quay.io/organization/alfresco) are used, since this product is only available for Alfresco Enterprise customers. In addition, [Alfresco Nexus](https://nexus.alfresco.com) credentials may be required. If you are Enterprise Customer or Partner but you are still experimenting problems to download Docker Images or download artifacts from Nexus, contact [Alfresco Hyland Support](https://community.hyland.com) in order to get required credentials and permissions.
+Docker Images from [quay.io](https://quay.io/organization/alfresco) are used, since this product is only available for Alfresco Enterprise customers. In addition, [Alfresco Nexus](https://nexus.alfresco.com) credentials may be required. If you are Enterprise Customer or Partner but you are still experiencing problems to download Docker Images or download artifacts from Nexus, contact [Alfresco Hyland Support](https://community.hyland.com) in order to get required credentials and permissions.
 
 This project provides following folders:
 
-* [alfresco-neural-search](alfresco-neural-search): Spring Boot application that indexes Alfresco documents in OpenSearch and provides a searching endpoing (like `http://localhost:8081/search?query=people playing a game`)
+* [alfresco-neural-search](alfresco-neural-search): Spring Boot application that indexes Alfresco documents in OpenSearch and provides a searching endpoint (like `http://localhost:8081/search?query=people playing a game`)
 * [docker-alfresco](docker-alfresco): regular Alfresco deployment adding a `text` rendition service
 * [docker-opensearch](docker-opensearch): regular 2 nodes OpenSearch deployment using TLS
 
@@ -58,7 +58,7 @@ curl --location 'http://localhost:8081/search?query=people%20playing%20a%20game'
 ]
 ```
 
->> Semantic search provides results not based in synonims or terms, but in the semantic meaning of the query.
+>> Semantic search provides results not based on synonyms or terms, but in the semantic meaning of the query.
 
 
 ## Resources
