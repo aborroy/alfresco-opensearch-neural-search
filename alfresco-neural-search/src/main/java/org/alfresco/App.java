@@ -3,6 +3,7 @@ package org.alfresco;
 import org.alfresco.opensearch.index.OpenSearchConfiguration;
 import org.alfresco.repo.service.BatchIndexerService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -18,6 +19,9 @@ import org.springframework.security.web.SecurityFilterChain;
 @SpringBootApplication
 @EnableScheduling
 public class App implements CommandLineRunner {
+
+    @Value("${batch.indexer.enabled}")
+    private boolean indexerEnabled;
 
     @Autowired
     private OpenSearchConfiguration openSearchConfiguration;
@@ -43,6 +47,9 @@ public class App implements CommandLineRunner {
     @Override
     public void run(String... args) throws Exception {
         openSearchConfiguration.apply();
+        if (!indexerEnabled) {
+            System.exit(0);
+        }
     }
 
     /**
