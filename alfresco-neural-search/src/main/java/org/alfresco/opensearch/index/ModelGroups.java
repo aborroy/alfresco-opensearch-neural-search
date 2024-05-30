@@ -8,6 +8,8 @@ import org.apache.http.entity.StringEntity;
 import org.opensearch.client.Request;
 import org.opensearch.client.Response;
 import org.opensearch.client.RestClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -19,6 +21,8 @@ import java.io.IOException;
  */
 @Component
 public class ModelGroups {
+
+    static final Logger LOG = LoggerFactory.getLogger(Model.class);
 
     @Value("${opensearch.model.group.name}")
     private String modelGroupName;
@@ -55,7 +59,12 @@ public class ModelGroups {
 
         ObjectMapper objectMapper = new ObjectMapper();
         JsonNode jsonResponse = objectMapper.readTree(response.getEntity().getContent());
-        return jsonResponse.get("model_group_id").asText();
+        String modelGroupId = jsonResponse.get("model_group_id").asText();
+
+        LOG.info("Model Group {} has been registered and deployed", modelGroupId);
+
+        return modelGroupId;
+
     }
 
     /**

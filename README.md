@@ -7,7 +7,7 @@ Docker Images from [quay.io](https://quay.io/organization/alfresco) are used, si
 This project provides following folders:
 
 * [alfresco-neural-search](alfresco-neural-search): Spring Boot application that indexes Alfresco documents in OpenSearch and provides a searching endpoint (like `http://localhost:8081/search?query=people playing a game`)
-* [docker-alfresco](docker-alfresco): regular Alfresco deployment adding a `text` rendition service
+* [docker-alfresco](docker-alfresco): regular Alfresco deployment
 * [docker-opensearch](docker-opensearch): regular 2 nodes OpenSearch deployment using TLS
 
 ## Running
@@ -40,7 +40,7 @@ Once OpenSearch is ready, stop the `alfresco-neural-app` app and run it again wi
 java -jar target/neural-search-0.8.0.jar --batch.indexer.enabled=true
 ```
 
-Upload a number of files to Alfresco Shared Folder and wait until they are indexed in OpenSearch.
+Upload a number of files to Alfresco and wait until they are indexed in OpenSearch.
 
 Try searching using the Search Endpoint available in 8081 port:
 

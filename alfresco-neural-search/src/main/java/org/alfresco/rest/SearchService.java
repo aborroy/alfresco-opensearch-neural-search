@@ -41,10 +41,11 @@ public class SearchService {
         for (JsonNode hitNode : hitsNode) {
             JsonNode sourceNode = hitNode.path("_source");
             String id = sourceNode.path("id").asText();
+            String name = sourceNode.path("name").asText();
             // Escape special characters in text content
             String text = JsonUtils.escape(sourceNode.path("text").asText());
             // Create a DocumentBean instance using Builder pattern
-            documents.add(DocumentBean.builder().uuid(id).text(text).build());
+            documents.add(DocumentBean.builder().uuid(id).name(name).text(text).build());
         }
 
         return documents;

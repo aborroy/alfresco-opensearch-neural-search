@@ -72,9 +72,7 @@ services:
           start_period: 1m
         volumes: 
             - ./data/alf-repo-data:/usr/local/tomcat/alf_data
-            - ./logs/alfresco:/usr/local/tomcat/logs
-            - ./alfresco/0200-enableText.json:/usr/local/tomcat/shared/classes/alfresco/extension/transform/renditions/0200-enableText.json
-        
+            - ./logs/alfresco:/usr/local/tomcat/logs        
 
     transform-core-aio:
         image: alfresco/alfresco-transform-core-aio:${TRANSFORM_ENGINE_TAG}

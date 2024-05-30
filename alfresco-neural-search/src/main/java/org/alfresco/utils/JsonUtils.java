@@ -1,5 +1,8 @@
 package org.alfresco.utils;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 /**
  * Utility class for JSON-related operations.
  */
@@ -56,4 +59,29 @@ public class JsonUtils {
 
         return output.toString();
     }
+
+    /**
+     * Replaces all Unicode escape sequences in the form \\uXXXX within the given text
+     * with their corresponding characters.
+     *
+     * @param text The input string containing Unicode escape sequences.
+     * @return A new string with all Unicode escape sequences replaced by their
+     *         corresponding characters.
+     */
+    public static String replaceUnicode(String text) {
+
+        Pattern unicodePattern = Pattern.compile("\\\\u([\\dA-Fa-f]{4})");
+        Matcher matcher = unicodePattern.matcher(text);
+        StringBuilder result = new StringBuilder();
+
+        while (matcher.find()) {
+            String unicodeChar = matcher.group(1);
+            int charCode = Integer.parseInt(unicodeChar, 16);
+            matcher.appendReplacement(result, Character.toString((char) charCode));
+        }
+        matcher.appendTail(result);
+
+        return result.toString();
+    }
+
 }

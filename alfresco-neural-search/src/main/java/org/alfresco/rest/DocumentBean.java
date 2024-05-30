@@ -1,11 +1,12 @@
 package org.alfresco.rest;
 
 /**
- * Represents a document bean with UUID and text content.
+ * Represents a document bean with UUID, name, and text content.
  */
 public class DocumentBean {
 
     private String uuid;
+    private String name;
     private String text;
 
     /**
@@ -24,6 +25,24 @@ public class DocumentBean {
      */
     public void setUuid(String uuid) {
         this.uuid = uuid;
+    }
+
+    /**
+     * Retrieves the name of the document.
+     *
+     * @return the name of the document
+     */
+    public String getName() {
+        return name;
+    }
+
+    /**
+     * Sets the name of the document.
+     *
+     * @param name the name to set
+     */
+    public void setName(String name) {
+        this.name = name;
     }
 
     /**
@@ -49,6 +68,7 @@ public class DocumentBean {
      */
     public static class Builder {
         private String uuid;
+        private String name;
         private String text;
 
         /**
@@ -59,6 +79,17 @@ public class DocumentBean {
          */
         public Builder uuid(String uuid) {
             this.uuid = uuid;
+            return this;
+        }
+
+        /**
+         * Sets the name for the document being built.
+         *
+         * @param name the name to set
+         * @return the Builder instance
+         */
+        public Builder name(String name) {
+            this.name = name;
             return this;
         }
 
@@ -81,6 +112,7 @@ public class DocumentBean {
         public DocumentBean build() {
             DocumentBean documentBean = new DocumentBean();
             documentBean.setUuid(this.uuid);
+            documentBean.setName(this.name);
             documentBean.setText(this.text);
             return documentBean;
         }

@@ -1,25 +1,26 @@
 package org.alfresco.repo.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.alfresco.opensearch.client.AlfrescoSolrApiClientFactory;
 import org.alfresco.opensearch.index.Index;
 import org.alfresco.opensearch.ingest.Indexer;
-import org.alfresco.search.handler.SearchApi;
-import org.alfresco.search.model.*;
+import org.alfresco.repo.service.beans.Node;
+import org.alfresco.repo.service.beans.NodeContainer;
+import org.alfresco.repo.service.beans.TransactionNodeContainer;
+import org.alfresco.repo.service.beans.TransactionNode;
 import org.alfresco.utils.JsonUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.ReentrantLock;
+
+import static org.alfresco.utils.JsonUtils.replaceUnicode;
 
 /**
  * Service for batch indexing documents into OpenSearch.
@@ -29,17 +30,14 @@ public class BatchIndexerService {
 
     private static final Logger LOG = LoggerFactory.getLogger(BatchIndexerService.class);
 
-    @Value("${content.service.root.folder}")
-    private String rootFolder;
-
     @Value("${batch.indexer.enabled}")
     private boolean enabled;
 
-    @Autowired
-    private SearchApi searchApi;
+    @Value("${batch.indexer.transaction.maxResults}")
+    private int maxResults;
 
-    @Autowired
-    private RenditionService renditionService;
+    @Value("${batch.indexer.indexableTypes}")
+    private String indexableTypes;
 
     @Autowired
     private Indexer indexer;
@@ -47,135 +45,192 @@ public class BatchIndexerService {
     @Autowired
     private Index index;
 
-    private static final ReentrantLock lock = new ReentrantLock();
+    @Autowired
+    private AlfrescoSolrApiClientFactory alfrescoSolrApiClient;
+
+    private static final int MAX_TOKENS = 512;
 
     /**
-     * Indexes documents by retrieving them from the search API, creating text renditions if needed,
-     * and indexing each document's segments.
+     * Schedules the indexing process according to the cron expression specified in properties.
      */
     @Scheduled(cron = "${batch.indexer.cron}")
-    public void index() throws Exception {
+    public void index() {
         if (enabled) {
-            internalIndex();
+            try {
+                internalIndex();
+            } catch (Exception e) {
+                LOG.error("Error during indexing", e);
+            }
         }
     }
 
     /**
-     * Indexes documents by retrieving them from the search API, creating text renditions if needed,
-     * and indexing each document's segments.
+     * Performs the internal indexing process. Retrieves transactions and processes them.
+     *
+     * @throws Exception if an error occurs during indexing
      */
     private void internalIndex() throws Exception {
+        long lastTransactionId = index.getAlfrescoIndexField() + 1;
 
-        if (lock.tryLock()) {
+        String transactions = retrieveTransactions(lastTransactionId, maxResults);
 
-            try {
+        ObjectMapper objectMapper = new ObjectMapper();
+        JsonNode rootNode = objectMapper.readTree(transactions);
 
-                RequestSortDefinition sortDefinition = new RequestSortDefinition();
-                sortDefinition.add(new RequestSortDefinitionInner()
-                        .type(RequestSortDefinitionInner.TypeEnum.FIELD)
-                        .field("id")
-                        .ascending(true));
+        long minTxnId = lastTransactionId;
+        long maxTxnId = lastTransactionId;
 
-                boolean hasMoreItems;
-                int skipCount = 0;
-                int maxItems = 20;
-
-                String currentDate = getCurrentDate();
-                String fromDate = index.getAlfrescoIndexField();
-
-                LOG.info("INDEXING Retrieving existing documents from {} to {} ...", fromDate, currentDate);
-
-                do {
-                    ResponseEntity<ResultSetPaging> results = searchApi.search(
-                            new SearchRequest()
-                                    .query(new RequestQuery()
-                                            .language(RequestQuery.LanguageEnum.AFTS)
-                                            .query("PATH:\"" + rootFolder + "//*\" AND cm:modified:['" + fromDate + "' TO '" + currentDate + "']"))
-                                    .sort(sortDefinition)
-                                    .paging(new RequestPagination().maxItems(maxItems).skipCount(skipCount)));
-
-                    LOG.info("Processing {} documents of a total of {}",
-                            results.getBody().getList().getEntries().size(),
-                            results.getBody().getList().getPagination().getTotalItems());
-
-                    results.getBody().getList().getEntries().forEach((entry) -> {
-                        String uuid = entry.getEntry().getId();
-
-                        // Create text rendition if not already created
-                        if (renditionService.textRenditionIsNotCreated(uuid)) {
-                            renditionService.createTextRendition(uuid);
-                            // Wait until the text rendition is created
-                            while (renditionService.textRenditionIsNotCreated(uuid)) {
-                                try {
-                                    TimeUnit.MILLISECONDS.sleep(2000);
-                                } catch (InterruptedException e) {
-                                    throw new RuntimeException(e);
-                                }
-                            }
-                        }
-
-                        // Index the document segments
-                        try {
-                            indexer.deleteDocumentIfExists(uuid);
-                            indexSegments(uuid, splitIntoSegments(JsonUtils.escape(renditionService.getTextRenditionContent(uuid))));
-                        } catch (Exception e) {
-                            throw new RuntimeException(e);
-                        }
-
-                    });
-
-                    hasMoreItems = results.getBody().getList().getPagination().isHasMoreItems();
-                    skipCount = skipCount + maxItems;
-
-                } while (hasMoreItems);
-
-                index.updateAlfrescoIndex(currentDate);
-
-            } finally {
-                lock.unlock();
+        JsonNode transactionsNode = rootNode.get("transactions");
+        if (transactionsNode != null && transactionsNode.isArray() && !transactionsNode.isEmpty()) {
+            for (JsonNode transactionNode : transactionsNode) {
+                long id = transactionNode.get("id").asLong();
+                minTxnId = Math.min(minTxnId, id);
+                maxTxnId = Math.max(maxTxnId, id);
             }
 
-        } else {
-            LOG.info("Indexing is already running. Skipping this run...");
-        }
+            LOG.info("Indexing content for transactions between {} and {}", minTxnId, maxTxnId);
+            processTransactions(minTxnId, maxTxnId);
 
+            index.updateAlfrescoIndex(maxTxnId);
+        } else {
+            LOG.info("All transactions have been indexed, maximum Transaction Id in repository is {}", maxTxnId);
+        }
+    }
+
+    /**
+     * Retrieves transactions from the Solr API.
+     *
+     * @param lastTransactionId the last transaction ID that was indexed
+     * @param maxResults the maximum number of results to retrieve
+     * @return a JSON string representing the transactions
+     * @throws Exception if an error occurs during the API request
+     */
+    private String retrieveTransactions(long lastTransactionId, int maxResults) throws Exception {
+        String endpoint = String.format("transactions?minTxnId=%d&maxResults=%d", lastTransactionId, maxResults);
+        return alfrescoSolrApiClient.executeGetRequest(endpoint);
+    }
+
+    /**
+     * Processes transactions between the specified minimum and maximum transaction IDs.
+     *
+     * @param minTxnId the minimum transaction ID
+     * @param maxTxnId the maximum transaction ID
+     * @throws Exception if an error occurs during processing
+     */
+    private void processTransactions(long minTxnId, long maxTxnId) throws Exception {
+        String payload = String.format("{\"fromTxnId\": %d, \"toTxnId\": %d}", minTxnId, maxTxnId);
+        String nodesResponse = alfrescoSolrApiClient.executePostRequest("nodes", payload);
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        TransactionNodeContainer transactionNodeContainer = objectMapper.readValue(nodesResponse, TransactionNodeContainer.class);
+        List<TransactionNode> transactionNodeList = transactionNodeContainer.getNodes();
+
+        for (TransactionNode transactionNode : transactionNodeList) {
+            processRawNode(transactionNode);
+        }
+    }
+
+    /**
+     * Processes an individual raw node.
+     *
+     * @param transactionNode the raw node to process
+     * @throws Exception if an error occurs during processing
+     */
+    private void processRawNode(TransactionNode transactionNode) throws Exception {
+        String payload = String.format("""
+                {
+                    "nodeIds": [%d],
+                    "includeAclId": false,
+                    "includeOwner": false,
+                    "includePaths": false,
+                    "includeParentAssociations": false,
+                    "includeChildIds": false,
+                    "includeChildAssociations": false
+                }
+                """, transactionNode.getId());
+        String metadataResponse = alfrescoSolrApiClient.executePostRequest("metadata", payload);
+
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        switch (transactionNode.getStatus()) {
+            case "u":
+                NodeContainer nodeContainer = objectMapper.readValue(metadataResponse, NodeContainer.class);
+                for (Node node : nodeContainer.getNodes()) {
+                    if (isIndexableType(node.getType())) {
+                        processNode(node);
+                    }
+                }
+                break;
+            case "d":
+                indexer.deleteDocumentIfExists(transactionNode.getId());
+                break;
+            default:
+                throw new IllegalArgumentException("Unknown status: " + transactionNode.getStatus());
+        }
+    }
+
+    /**
+     * Checks if the node type is indexable based on the configured indexable types.
+     *
+     * @param type the node type
+     * @return true if the type is indexable, false otherwise
+     */
+    private boolean isIndexableType(String type) {
+        String[] types = indexableTypes.split(",");
+        for (String t : types) {
+            if (t.equals(type)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Processes an individual node, retrieving its content and indexing it.
+     *
+     * @param node the node to process
+     * @throws Exception if an error occurs during processing
+     */
+    private void processNode(Node node) throws Exception {
+        int index = node.getNodeRef().lastIndexOf("/");
+        if (index == -1) {
+            throw new IllegalArgumentException("Invalid node reference: " + node.getNodeRef());
+        }
+        String uuid = node.getNodeRef().substring(index + 1);
+        String name = node.getProperties().get("{http://www.alfresco.org/model/content/1.0}name").toString();
+        String content = alfrescoSolrApiClient.executeGetRequest("textContent?nodeId=" + node.getId());
+
+        indexer.deleteDocumentIfExists(uuid);
+        indexSegments(uuid, node.getId(), name, splitIntoSegments(JsonUtils.escape(content)));
     }
 
     /**
      * Indexes segments of a document.
      *
      * @param documentId the ID of the document
-     * @param segments   the segments to index
+     * @param dbid the ID of the document in the database
+     * @param documentName the name of the document
+     * @param segments the segments to index
      * @throws Exception if an error occurs during indexing
      */
-    private void indexSegments(String documentId, List<String> segments) throws Exception {
+    private void indexSegments(String documentId, Long dbid, String documentName, List<String> segments) throws Exception {
+        LOG.info("Indexing {} document parts for {} - {} - {}", segments.size(), dbid, documentId, documentName);
         for (int i = 0; i < segments.size(); i++) {
             String segmentId = documentId + "_" + i;
-            LOG.info("Indexing segment {} of {} for document {}", i + 1, segments.size(), documentId);
-            indexer.index(segmentId, segments.get(i));
+            indexer.index(segmentId, dbid, documentName, segments.get(i));
         }
     }
 
     /**
-     * Retrieves the current date and time in UTC format as a string.
-     *
-     * @return A string representing the current date and time in the format "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'".
-     */
-    private String getCurrentDate() {
-        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
-        return now.format(formatter);
-    }
-
-    private static final int MAX_TOKENS = 512;
-
-    /**
-     * Splits text into segments.
+     * Splits text into segments for indexing.
      *
      * @param text the text to split
-     * @return list of text segments
+     * @return a list of text segments
      */
     private static List<String> splitIntoSegments(String text) {
+        text = text.replace("\\n", " ").replace("\\r", " ");
+        text = replaceUnicode(text);
+
         String[] tokens = text.split("\\s+");
         List<String> segments = new ArrayList<>();
         StringBuilder currentSegment = new StringBuilder();

@@ -26,7 +26,6 @@ import java.io.IOException;
 public class Index {
 
     static final Logger LOG = LoggerFactory.getLogger(Index.class);
-    public static final String ZERO_TIME_DATE = "1970-01-01T00:00:00.000Z";
 
     @Value("${opensearch.index.name}")
     private String indexName;
@@ -83,6 +82,12 @@ public class Index {
                           "parameters": {}
                         }
                       },
+                      "dbid": {
+                          "type": "long"
+                      },
+                      "name": {
+                        "type": "text"
+                      },
                       "text": {
                         "type": "text"
                       }
@@ -99,7 +104,7 @@ public class Index {
     }
 
     /**
-     * Create index to control alfresco indexing information (mainly last time the folder was synchronized)
+     * Create index to control alfresco indexing information
      */
     public void createAlfrescoIndex() throws Exception {
 
@@ -108,8 +113,8 @@ public class Index {
                 {
                   "mappings": {
                     "properties": {
-                      "lastSyncTime": {
-                        "type": "text"
+                      "lastTransactionId": {
+                        "type": "long"
                       }
                     }
                   }
@@ -126,36 +131,32 @@ public class Index {
     /**
      * Updates the last synchronization time in the Alfresco index.
      *
-     * @param lastSyncTime The last synchronization time to be updated in the Alfresco index.
+     * @param lastTransactionId The last transactionId to be updated in the Alfresco index.
      * @throws Exception If an error occurs during the update process.
      */
-    public void updateAlfrescoIndex(String lastSyncTime) throws Exception {
+    public void updateAlfrescoIndex(Long lastTransactionId) throws Exception {
         Request request = new Request("PUT", "/alfresco-control/_doc/1");
-        String jsonString = """
-                {
-                  "lastSyncTime": "%s"
-                }
-                """;
-        request.setEntity(new StringEntity(String.format(jsonString, lastSyncTime), ContentType.APPLICATION_JSON));
+        String jsonString = "{ \"lastTransactionId\": %d }".formatted(lastTransactionId);
+        request.setEntity(new StringEntity(jsonString, ContentType.APPLICATION_JSON));
         restClient().performRequest(request);
     }
 
     /**
-     * Retrieves the value of the last synchronization time field from the Alfresco index.
+     * Retrieves the value of the last transaction Id synchronized from the Alfresco index.
      *
-     * @return The value of the last synchronization time field.
+     * @return The value of the last transaction Id synchronized.
      * @throws Exception If an error occurs during the retrieval process.
      */
-    public String getAlfrescoIndexField() throws Exception {
+    public Long getAlfrescoIndexField() throws Exception {
         Request request = new Request("GET", "/alfresco-control/_doc/1");
         try {
             Response response = restClient().performRequest(request);
             ObjectMapper objectMapper = new ObjectMapper();
             JsonNode jsonResponse = objectMapper.readTree(response.getEntity().getContent());
-            return jsonResponse.findValue("lastSyncTime").asText();
+            return jsonResponse.get("_source").get("lastTransactionId").asLong();
         } catch (ResponseException e) {
             if (e.getResponse().getStatusLine().getStatusCode() == 404) {
-                return ZERO_TIME_DATE;
+                return -1L;
             } else {
                 throw e;
             }
