@@ -4,7 +4,6 @@ import org.alfresco.opensearch.client.OpenSearchClientFactory;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.opensearch.client.Request;
-import org.opensearch.client.Response;
 import org.opensearch.client.RestClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,9 +61,9 @@ public class Pipeline {
                 }
                 """;
         request.setEntity(new StringEntity(String.format(ingestJsonString, modelId), ContentType.APPLICATION_JSON));
-        Response response = restClient().performRequest(request);
+        restClient().performRequest(request);
 
-        // Search pipeline
+        // Search pipeline using 30% / 70% weight for text / neural retrieval
         request = new Request("PUT", "/_search/pipeline/" + ingestPipelineName);
         String searchJsonString = """
                 {

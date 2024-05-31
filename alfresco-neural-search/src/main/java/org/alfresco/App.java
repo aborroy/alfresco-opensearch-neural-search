@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -27,6 +28,9 @@ public class App implements CommandLineRunner {
 
     @Value("${batch.indexer.enabled}")
     private boolean indexerEnabled;
+
+    @Value("${cors.filter.disabled}")
+    private boolean corsFilterDisabled;
 
     @Autowired
     private OpenSearchConfiguration openSearchConfiguration;
@@ -72,18 +76,27 @@ public class App implements CommandLineRunner {
                 .build();
     }
 
+    /**
+     * Conditionally creates the CORS filter bean based on the application property.
+     *
+     * @return the configured CorsFilter if enabled, null otherwise
+     */
     @Bean
+    @ConditionalOnProperty(name = "cors.filter.disabled", havingValue = "true")
     public CorsFilter corsFilter() {
-        CorsConfiguration corsConfiguration = new CorsConfiguration();
-        corsConfiguration.setAllowCredentials(false);
-        corsConfiguration.addAllowedOrigin("*");
-        corsConfiguration.addAllowedHeader("*");
-        corsConfiguration.addAllowedMethod("*");
+        if (corsFilterDisabled) {
+            CorsConfiguration corsConfiguration = new CorsConfiguration();
+            corsConfiguration.setAllowCredentials(false);
+            corsConfiguration.addAllowedOrigin("*");
+            corsConfiguration.addAllowedHeader("*");
+            corsConfiguration.addAllowedMethod("*");
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", corsConfiguration);
+            UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+            source.registerCorsConfiguration("/**", corsConfiguration);
 
-        return new CorsFilter(source);
+            return new CorsFilter(source);
+        }
+        return null;
     }
 
 }

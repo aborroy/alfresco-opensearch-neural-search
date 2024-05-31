@@ -230,7 +230,7 @@ public class BatchIndexerService {
      * @param segments the segments to index
      */
     private void indexSegments(String documentId, Long dbid, String documentName, List<String> segments) {
-        LOG.info("Indexing {} document parts for {} - {} - {}", segments.size(), dbid, documentId, documentName);
+        LOG.debug("Indexing {} document parts for {} - {} - {}", segments.size(), dbid, documentId, documentName);
         IntStream.range(0, segments.size())
                 .parallel()
                 .forEach(i -> {
