@@ -1,0 +1,49 @@
+.search-container {
+  display: flex;
+  justify-content: center;
+  margin: 20px;
+}
+
+.search-input {
+  width: 100%;
+  max-width: 600px;
+}
+
+.example-container {
+  margin: 0 auto;
+  padding: 20px;
+  max-width: 1200px;
+}
+
+.mat-elevation-z8 {
+  box-shadow: 0px 0px 0px rgba(0, 0, 0, 0.2);
+}
+
+.mat-header-cell,
+.mat-cell {
+  padding: 16px;
+  font-size: 10pt;
+}
+
+.hidden-column {
+  display: none;
+}
+
+.name-text-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.result-link {
+  text-decoration: none;
+  color: #3f51b5;
+}
+
+.result-link:hover {
+  text-decoration: underline;
+}
+
+.text-content {
+  margin-top: 8px;
+  white-space: pre-wrap; /* Ensures that the text content respects whitespace and line breaks */
+}

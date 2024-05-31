@@ -1,0 +1,46 @@
+<div class="search-container">
+  <mat-form-field class="search-input" appearance="outline">
+    <mat-label>Search</mat-label>
+    <input matInput placeholder="Enter your search term" [(ngModel)]="queryString" />
+    <button mat-icon-button matSuffix (click)="onSearch()">
+      <mat-icon *ngIf="!loading">search</mat-icon>
+      <mat-progress-spinner *ngIf="loading" mode="indeterminate" diameter="20"></mat-progress-spinner>
+    </button>
+  </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-select placeholder="Select search type" [(value)]="selectedSearchType" [(ngModel)]="selectedSearchType">
+        <mat-option value="Semantic">Semantic</mat-option>
+        <mat-option value="Keywords">Keywords</mat-option>
+        <mat-option value="Hybrid">Hybrid</mat-option>
+      </mat-select>
+    </mat-form-field>
+</div>
+
+
+<div class="example-container mat-elevation-z8" *ngIf="!loading">
+  <mat-table #table [dataSource]="searchResults()">
+    <ng-container matColumnDef="id">
+      <mat-header-cell *matHeaderCellDef class="hidden-column"> Id </mat-header-cell>
+      <mat-cell *matCellDef="let element" class="hidden-column">{{ element.id }}</mat-cell>
+    </ng-container>
+
+    <ng-container matColumnDef="nameText">
+      <mat-header-cell *matHeaderCellDef>
+        <ng-container *ngIf="header !== null && header.trim() !== ''">{{ header }}</ng-container>
+      </mat-header-cell>
+      <mat-cell *matCellDef="let element">
+        <div class="name-text-container">
+          <a class="result-link" [href]="'http://localhost:8080/share/page/document-details?nodeRef=workspace://SpacesStore/' + element.id.split('_')[0]" target="_blank">
+            {{ element.name }}
+          </a>
+          <div class="text-content">
+            {{ replaceUnicode(element.text) }}
+          </div>
+        </div>
+      </mat-cell>
+    </ng-container>
+
+    <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
+    <mat-row *matRowDef="let row; columns: displayedColumns"></mat-row>
+  </mat-table>
+</div>

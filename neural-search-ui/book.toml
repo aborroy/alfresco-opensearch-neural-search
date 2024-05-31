@@ -1,0 +1,10 @@
+[book]
+authors = ["Hyland Software, Inc. and its affiliates"]
+language = "en"
+multilingual = false
+src = "docs"
+title = "Application Shell Development Kit"
+
+[output.html]
+git-repository-url = "https://github.com/Alfresco/hx-devkit"
+site-url = "/hx-devkit/"
