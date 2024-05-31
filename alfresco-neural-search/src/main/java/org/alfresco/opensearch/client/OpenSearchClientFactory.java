@@ -1,11 +1,14 @@
 package org.alfresco.opensearch.client;
 
+import org.apache.hc.client5.http.impl.async.HttpAsyncClientBuilder;
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.ssl.SSLContextBuilder;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.opensearch.client.RestClient;
+import org.opensearch.client.RestClientBuilder;
 import org.opensearch.client.json.jackson.JacksonJsonpMapper;
 import org.opensearch.client.opensearch.OpenSearchClient;
 import org.opensearch.client.transport.OpenSearchTransport;
@@ -36,6 +39,9 @@ public class OpenSearchClientFactory {
     @Value("${opensearch.password}")
     private String opensearchPassword;
 
+    @Value("${opensearch.verify.hostname}")
+    private Boolean verifyHostname;
+
     private OpenSearchClient openSearchClient;
     private RestClient restClient;
 
@@ -50,20 +56,49 @@ public class OpenSearchClientFactory {
         BasicCredentialsProvider credentialsProvider = new BasicCredentialsProvider();
         credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(opensearchUser, opensearchPassword));
 
+        overrideTruststoreDefaults();
         SSLContext sslContext;
         try {
-            sslContext = SSLContextBuilder.create().loadTrustMaterial(null, (chains, authType) -> true).build();
+            sslContext = SSLContextBuilder.create().loadTrustMaterial((chain, authType) -> true).build();
         } catch (Exception e) {
             throw new RuntimeException("Failed to create SSLContext", e);
         }
 
-        restClient = RestClient.builder(new HttpHost(opensearchHost, opensearchPort, opensearchProtocol))
-                .setHttpClientConfigCallback(httpClientBuilder ->
-                        httpClientBuilder.setSSLContext(sslContext).setDefaultCredentialsProvider(credentialsProvider))
-                .build();
+        RestClientBuilder builder = RestClient.builder(new HttpHost(opensearchHost, opensearchPort, opensearchProtocol));
+        builder.setHttpClientConfigCallback(httpClientBuilder -> {
+            httpClientBuilder.setSSLContext(sslContext);
+            httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
+            if (!verifyHostname) {
+                httpClientBuilder.setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE);
+            }
+            return httpClientBuilder;
+        });
+        restClient = builder.build();
 
         OpenSearchTransport transport = new RestClientTransport(restClient, new JacksonJsonpMapper());
         openSearchClient = new OpenSearchClient(transport);
+    }
+
+    /**
+     * Overrides the default truststore configuration by reading environment variables.
+     * Environment variables:
+     * - JAVAX_NET_SSL_TRUSTSTORE: Path to the truststore file.
+     * - JAVAX_NET_SSL_TRUSTSTORETYPE: Type of the truststore (e.g., JKS, PKCS12).
+     * - JAVAX_NET_SSL_TRUSTSTOREPASSWORD: Password for the truststore.
+     */
+    private void overrideTruststoreDefaults() {
+        String trustStorePath = System.getenv("JAVAX_NET_SSL_TRUSTSTORE");
+        if (trustStorePath != null) {
+            System.setProperty("javax.net.ssl.trustStore", trustStorePath);
+        }
+        String trustStoreType = System.getenv("JAVAX_NET_SSL_TRUSTSTORETYPE");
+        if (trustStoreType != null) {
+            System.setProperty("javax.net.ssl.trustStoreType", trustStoreType);
+        }
+        String trustStorePassword = System.getenv("JAVAX_NET_SSL_TRUSTSTOREPASSWORD");
+        if (trustStorePassword != null) {
+            System.setProperty("javax.net.ssl.trustStorePassword", trustStorePassword);
+        }
     }
 
     /**
