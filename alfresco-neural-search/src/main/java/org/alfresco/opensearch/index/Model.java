@@ -25,7 +25,6 @@ public class Model {
 
     static final Logger LOG = LoggerFactory.getLogger(Model.class);
 
-    static final int MAX_RETRIES = 10;
     static final int RETRY_DELAY_MS = 10000;
 
     @Value("${opensearch.model.name}")
@@ -115,7 +114,7 @@ public class Model {
 
     /**
      * Waits for the task with the specified task ID to complete by periodically checking its state.
-     * This method will retry a specified number of times and exit with an error if the task state is not "CREATED".
+     * This method will continue checking until the task state is no longer "CREATED" or "RUNNING".
      *
      * @param taskId the ID of the task to monitor
      * @throws IOException if an I/O error occurs during the request
@@ -124,19 +123,17 @@ public class Model {
     private void waitForTaskCompletion(String taskId) throws IOException, InterruptedException {
         ObjectMapper objectMapper = new ObjectMapper();
         String taskState = "CREATED";
-        int attempt = 0;
 
-        while (attempt < MAX_RETRIES && "CREATED".equals(taskState)) {
+        while ("CREATED".equals(taskState) || "RUNNING".equals(taskState)) {
             TimeUnit.MILLISECONDS.sleep(RETRY_DELAY_MS);
             Request request = new Request("GET", "/_plugins/_ml/tasks/" + taskId);
             Response response = restClient().performRequest(request);
             JsonNode jsonResponse = objectMapper.readTree(response.getEntity().getContent());
             taskState = jsonResponse.get("state").asText();
-            attempt++;
         }
 
         if (!"COMPLETED".equals(taskState)) {
-            throw new IOException("Task " + taskId + " failed to complete after " + MAX_RETRIES + " attempts, task state: " + taskState);
+            throw new IOException("Task " + taskId + " failed to complete, task state: " + taskState);
         }
     }
 
