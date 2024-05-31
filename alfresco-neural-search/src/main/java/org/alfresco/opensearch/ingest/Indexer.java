@@ -3,12 +3,12 @@ package org.alfresco.opensearch.ingest;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.alfresco.opensearch.client.OpenSearchClientFactory;
-import org.alfresco.repo.service.BatchIndexerService;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.opensearch.client.Request;
 import org.opensearch.client.Response;
 import org.opensearch.client.RestClient;
+import org.opensearch.client.ResponseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Component for indexing documents into OpenSearch.
@@ -74,33 +75,52 @@ public class Indexer {
      * Verifies indexing process by using the model is working.
      */
     public void verifyIndexStatus() throws Exception {
+        int retryCount = 0;
+        boolean success = false;
 
-        Request request = new Request("POST", "/" + indexName + "/_doc");
-        String jsonString = """
-                    {
-                       "id": "%s",
-                       "dbid": "%o",
-                       "name": "%s",
-                       "text": "%s"
-                    }
-                    """;
-        String formattedJson = String.format(jsonString, "1", 1L, "verify", "verify");
-        request.setEntity(new StringEntity(formattedJson, ContentType.APPLICATION_JSON));
-        restClient().performRequest(request);
-
-        request = new Request("POST", "/" + indexName + "/_delete_by_query");
-        jsonString = """
-                    {
-                      "query": {
-                        "match": {
-                          "id": "%s"
+        while (retryCount < 3 && !success) {
+            try {
+                Request request = new Request("POST", "/" + indexName + "/_doc");
+                String jsonString = """
+                        {
+                           "id": "%s",
+                           "dbid": "%o",
+                           "name": "%s",
+                           "text": "%s"
                         }
-                      }
-                    }
-                    """;
-        request.setEntity(new StringEntity(String.format(jsonString, "1"), ContentType.APPLICATION_JSON));
-        restClient().performRequest(request);
+                        """;
+                String formattedJson = String.format(jsonString, "1", 1L, "verify", "verify");
+                request.setEntity(new StringEntity(formattedJson, ContentType.APPLICATION_JSON));
+                restClient().performRequest(request);
 
+                request = new Request("POST", "/" + indexName + "/_delete_by_query");
+                jsonString = """
+                        {
+                          "query": {
+                            "match": {
+                              "id": "%s"
+                            }
+                          }
+                        }
+                        """;
+                request.setEntity(new StringEntity(String.format(jsonString, "1"), ContentType.APPLICATION_JSON));
+                restClient().performRequest(request);
+
+                success = true; // Mark the operation as successful
+            } catch (ResponseException e) {
+                if (e.getResponse().getStatusLine().getStatusCode() == 403) {
+                    // If Forbidden status, retry
+                    retryCount++;
+                    TimeUnit.SECONDS.sleep(1);
+                } else {
+                    throw e; // Re-throw if it's not the expected exception
+                }
+            }
+        }
+
+        if (!success) {
+            throw new Exception("Failed to verify index status after 3 attempts");
+        }
     }
 
     /**

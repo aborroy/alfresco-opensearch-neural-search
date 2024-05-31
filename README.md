@@ -134,6 +134,25 @@ services:
       - "./src/main/resources/alfresco.truststore:/opt/app/alfresco.truststore"
 ```
 
+## Running all services using Docker Compose
+
+Build the Docker Image using following command:
+
+```
+cd alfresco-neural-search
+mvn clean package
+docker build . -t alfresco-neural-search
+```
+
+Go back to project root folder and start Docker Compose:
+
+```
+cd ..
+docker compose up
+```
+
+After a while, services will be available.
+
 ## Additional Resources
 
 * https://opensearch.org/docs/latest/search-plugins/neural-search-tutorial/

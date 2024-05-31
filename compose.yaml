@@ -1,0 +1,4 @@
+include:
+  - docker-alfresco/docker-compose.yml
+  - docker-opensearch/compose.yaml
+  - alfresco-neural-search/compose.yaml

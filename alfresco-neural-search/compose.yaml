@@ -1,0 +1,18 @@
+services:
+  alfresco-neural-search:
+    image: alfresco-neural-search
+    ports:
+      - "8081:8081"
+    environment:
+      CONTENT_SERVICE_URL: "http://alfresco:8080"
+      OPENSEARCH_HOST: "opensearch-node1"
+      JAVAX_NET_SSL_TRUSTSTORE: "/opt/app/alfresco.truststore"
+      JAVAX_NET_SSL_TRUSTSTORETYPE: "PKCS12"
+      JAVAX_NET_SSL_TRUSTSTOREPASSWORD: "truststore"
+    depends_on:
+      opensearch-node1:
+        condition: service_healthy
+      opensearch-node2:
+        condition: service_healthy      
+    volumes:
+      - ./src/main/resources/alfresco.truststore:/opt/app/alfresco.truststore
