@@ -7,6 +7,8 @@ import org.springframework.stereotype.Component;
 
 import java.util.concurrent.CountDownLatch;
 
+import org.alfresco.opensearch.ingest.Indexer;
+
 /**
  * Component for managing OpenSearch configuration settings, including cluster settings, model groups, models, pipelines, and indices.
  */
@@ -30,11 +32,14 @@ public class OpenSearchConfiguration {
     @Autowired
     private Index index;
 
+    @Autowired
+    private Indexer indexer;
+
     private String modelGroupId;
     private String modelId;
 
     // Prevent indexer to be executed till OpenSearch is properly configured
-    private CountDownLatch latch = new CountDownLatch(1);
+    private final CountDownLatch latch = new CountDownLatch(1);
 
     /**
      * Applies OpenSearch configuration settings.
@@ -44,7 +49,7 @@ public class OpenSearchConfiguration {
      * @throws Exception if an error occurs during the application of configuration settings
      */
     public void apply() throws Exception {
-        LOG.info("--");
+        LOG.info("-- CONFIG --");
         if (index.existIndex()) {
             // If index exists, retrieve existing model group ID and model ID
             modelGroupId = modelGroups.getModelGroupId();
@@ -58,11 +63,10 @@ public class OpenSearchConfiguration {
             pipeline.apply(modelId);
             index.createKnnIndex();
             index.createAlfrescoIndex();
-            // Waiting some seconds to avoid "Failed to Validate Access for ModelId" issue with OpenSearch 2.13.0
-            Thread.sleep(20000);
+            indexer.verifyIndexStatus();
             LOG.info("CONFIG: Index configured and model with id {} deployed!", modelId);
         }
-        LOG.info("--");
+        LOG.info("-- CONFIG --");
         latch.countDown();
     }
 

@@ -71,6 +71,39 @@ public class Indexer {
     }
 
     /**
+     * Verifies indexing process by using the model is working.
+     */
+    public void verifyIndexStatus() throws Exception {
+
+        Request request = new Request("POST", "/" + indexName + "/_doc");
+        String jsonString = """
+                    {
+                       "id": "%s",
+                       "dbid": "%o",
+                       "name": "%s",
+                       "text": "%s"
+                    }
+                    """;
+        String formattedJson = String.format(jsonString, "1", 1L, "verify", "verify");
+        request.setEntity(new StringEntity(formattedJson, ContentType.APPLICATION_JSON));
+        restClient().performRequest(request);
+
+        request = new Request("POST", "/" + indexName + "/_delete_by_query");
+        jsonString = """
+                    {
+                      "query": {
+                        "match": {
+                          "id": "%s"
+                        }
+                      }
+                    }
+                    """;
+        request.setEntity(new StringEntity(String.format(jsonString, "1"), ContentType.APPLICATION_JSON));
+        restClient().performRequest(request);
+
+    }
+
+    /**
      * Deletes document segments from the index if they exist, based on the provided UUID.
      *
      * @param uuid The UUID of the document to be deleted.
