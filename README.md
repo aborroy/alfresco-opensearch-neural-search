@@ -101,7 +101,7 @@ Build the Docker Image using following command:
 docker build . -t alfresco-neural-search
 ```
 
-Run the Docker Container or use it as a service in Docker Compose:
+Run the Docker Container:
 
 ```
 docker run -p 8081:8081 \
@@ -112,6 +112,25 @@ docker run -p 8081:8081 \
 -e JAVAX_NET_SSL_TRUSTSTOREPASSWORD=truststore \
 -v ./src/main/resources/alfresco.truststore:/opt/app/alfresco.truststore \
 alfresco-neural-search
+```
+
+Use the Docker Image as a Docker Compose service:
+
+
+```
+services:
+  alfresco-neural-search:
+    image: alfresco-neural-search
+    ports:
+      - "8081:8081"
+    environment:
+      CONTENT_SERVICE_URL: "http://<ALFRESCO_HOST_NAME>:8080"
+      OPENSEARCH_HOST: "<OPENSEARCH_HOST_NAME>"
+      JAVAX_NET_SSL_TRUSTSTORE: "/opt/app/alfresco.truststore"
+      JAVAX_NET_SSL_TRUSTSTORETYPE: "PKCS12"
+      JAVAX_NET_SSL_TRUSTSTOREPASSWORD: "truststore"
+    volumes:
+      - "./src/main/resources/alfresco.truststore:/opt/app/alfresco.truststore"
 ```
 
 ## Additional Resources
