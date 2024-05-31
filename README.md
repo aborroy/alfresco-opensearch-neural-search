@@ -95,9 +95,10 @@ curl --location 'http://localhost:8081/search?query=people%20screaming&searchTyp
 
 ## Running as a container
 
-Build the Docker Image using following command:
+Build the Docker Image using following command (JAR file for `alfresco-neural-search` needs to be built before building the Docker Image):
 
 ```
+cd alfresco-neural-search
 docker build . -t alfresco-neural-search
 ```
 
