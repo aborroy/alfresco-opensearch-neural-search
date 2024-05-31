@@ -46,9 +46,8 @@ public class Indexer {
      * @param uuid the UUID of the document
      * @param name the UUID of the document
      * @param text the text content of the document
-     * @throws IOException if an I/O error occurs during the request
      */
-    public void index(String uuid, Long dbid, String name, String text) throws IOException {
+    public void index(String uuid, Long dbid, String name, String text) {
         if (!text.isEmpty()) {
             Request request = new Request("POST", "/" + indexName + "/_doc");
             String jsonString = """

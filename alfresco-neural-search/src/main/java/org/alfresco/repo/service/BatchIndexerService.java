@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.IntStream;
 
 import static org.alfresco.utils.JsonUtils.replaceUnicode;
 
@@ -29,6 +30,14 @@ import static org.alfresco.utils.JsonUtils.replaceUnicode;
 public class BatchIndexerService {
 
     private static final Logger LOG = LoggerFactory.getLogger(BatchIndexerService.class);
+
+    // Alfresco Content Model
+    public static final String CM_NAME = "{http://www.alfresco.org/model/content/1.0}name";
+    public static final String SYS_STORE_IDENTIFIER = "{http://www.alfresco.org/model/system/1.0}store-identifier";
+    public static final String SPACES_STORE = "SpacesStore";
+
+    // Max number of tokens handled by the NLP token
+    private static final int MAX_TOKENS = 512;
 
     @Value("${batch.indexer.enabled}")
     private boolean enabled;
@@ -47,8 +56,6 @@ public class BatchIndexerService {
 
     @Autowired
     private AlfrescoSolrApiClientFactory alfrescoSolrApiClient;
-
-    private static final int MAX_TOKENS = 512;
 
     /**
      * Schedules the indexing process according to the cron expression specified in properties.
@@ -72,15 +79,13 @@ public class BatchIndexerService {
     private void internalIndex() throws Exception {
         long lastTransactionId = index.getAlfrescoIndexField() + 1;
 
-        String transactions = retrieveTransactions(lastTransactionId, maxResults);
-
-        ObjectMapper objectMapper = new ObjectMapper();
-        JsonNode rootNode = objectMapper.readTree(transactions);
+        JsonNode rootNode = retrieveTransactions(lastTransactionId, maxResults);
 
         long minTxnId = lastTransactionId;
         long maxTxnId = lastTransactionId;
 
         JsonNode transactionsNode = rootNode.get("transactions");
+        long maxTxnIdRepository = rootNode.get("maxTxnId").asLong();
         if (transactionsNode != null && transactionsNode.isArray() && !transactionsNode.isEmpty()) {
             for (JsonNode transactionNode : transactionsNode) {
                 long id = transactionNode.get("id").asLong();
@@ -93,7 +98,12 @@ public class BatchIndexerService {
 
             index.updateAlfrescoIndex(maxTxnId);
         } else {
-            LOG.info("All transactions have been indexed, maximum Transaction Id in repository is {}", maxTxnId);
+            LOG.info(
+                    """
+                    All transactions have been indexed:
+                     - maximum Transaction Id in Alfresco is {}
+                     - maximum Transaction Id in OpenSearch is {}
+                    """, maxTxnIdRepository, index.getAlfrescoIndexField());
         }
     }
 
@@ -105,9 +115,10 @@ public class BatchIndexerService {
      * @return a JSON string representing the transactions
      * @throws Exception if an error occurs during the API request
      */
-    private String retrieveTransactions(long lastTransactionId, int maxResults) throws Exception {
+    private JsonNode retrieveTransactions(long lastTransactionId, int maxResults) throws Exception {
         String endpoint = String.format("transactions?minTxnId=%d&maxResults=%d", lastTransactionId, maxResults);
-        return alfrescoSolrApiClient.executeGetRequest(endpoint);
+        ObjectMapper objectMapper = new ObjectMapper();
+        return objectMapper.readTree(alfrescoSolrApiClient.executeGetRequest(endpoint));
     }
 
     /**
@@ -153,6 +164,7 @@ public class BatchIndexerService {
         ObjectMapper objectMapper = new ObjectMapper();
 
         switch (transactionNode.getStatus()) {
+            // Created or Updated
             case "u":
                 NodeContainer nodeContainer = objectMapper.readValue(metadataResponse, NodeContainer.class);
                 for (Node node : nodeContainer.getNodes()) {
@@ -161,6 +173,7 @@ public class BatchIndexerService {
                     }
                 }
                 break;
+            // Deleted
             case "d":
                 indexer.deleteDocumentIfExists(transactionNode.getId());
                 break;
@@ -197,11 +210,15 @@ public class BatchIndexerService {
             throw new IllegalArgumentException("Invalid node reference: " + node.getNodeRef());
         }
         String uuid = node.getNodeRef().substring(index + 1);
-        String name = node.getProperties().get("{http://www.alfresco.org/model/content/1.0}name").toString();
-        String content = alfrescoSolrApiClient.executeGetRequest("textContent?nodeId=" + node.getId());
+        String name = node.getProperties().get(CM_NAME).toString();
+        String storeIdentifier = node.getProperties().get(SYS_STORE_IDENTIFIER).toString();
 
-        indexer.deleteDocumentIfExists(uuid);
-        indexSegments(uuid, node.getId(), name, splitIntoSegments(JsonUtils.escape(content)));
+        // Avoid processing nodes in ArchiveStore or VersionStore
+        if (storeIdentifier.equals(SPACES_STORE)) {
+            String content = alfrescoSolrApiClient.executeGetRequest("textContent?nodeId=" + node.getId());
+            indexer.deleteDocumentIfExists(uuid);
+            indexSegments(uuid, node.getId(), name, splitIntoSegments(JsonUtils.escape(content)));
+        }
     }
 
     /**
@@ -211,14 +228,15 @@ public class BatchIndexerService {
      * @param dbid the ID of the document in the database
      * @param documentName the name of the document
      * @param segments the segments to index
-     * @throws Exception if an error occurs during indexing
      */
-    private void indexSegments(String documentId, Long dbid, String documentName, List<String> segments) throws Exception {
+    private void indexSegments(String documentId, Long dbid, String documentName, List<String> segments) {
         LOG.info("Indexing {} document parts for {} - {} - {}", segments.size(), dbid, documentId, documentName);
-        for (int i = 0; i < segments.size(); i++) {
-            String segmentId = documentId + "_" + i;
-            indexer.index(segmentId, dbid, documentName, segments.get(i));
-        }
+        IntStream.range(0, segments.size())
+                .parallel()
+                .forEach(i -> {
+                    String segmentId = documentId + "_" + i;
+                    indexer.index(segmentId, dbid, documentName, segments.get(i));
+                });
     }
 
     /**
