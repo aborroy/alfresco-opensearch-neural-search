@@ -9,6 +9,7 @@ This project provides following folders:
 * [alfresco-neural-search](alfresco-neural-search): Spring Boot application that indexes Alfresco documents in OpenSearch and provides a searching endpoint (like `http://localhost:8081/search?query=people playing a game`)
 * [docker-alfresco](docker-alfresco): regular Alfresco deployment
 * [docker-opensearch](docker-opensearch): regular 2 nodes OpenSearch deployment using TLS
+* [neural-search-ui](neural-search-ui): Sample ADF UI to test semantic, keyword or hybrid search with link to document detail in Alfresco Share
 
 ## Running
 
