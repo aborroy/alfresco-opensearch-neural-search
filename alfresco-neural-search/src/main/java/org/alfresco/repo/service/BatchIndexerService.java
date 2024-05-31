@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.alfresco.opensearch.client.AlfrescoSolrApiClientFactory;
 import org.alfresco.opensearch.index.Index;
+import org.alfresco.opensearch.index.OpenSearchConfiguration;
 import org.alfresco.opensearch.ingest.Indexer;
 import org.alfresco.repo.service.beans.Node;
 import org.alfresco.repo.service.beans.NodeContainer;
@@ -39,9 +40,6 @@ public class BatchIndexerService {
     // Max number of tokens handled by the NLP token
     private static final int MAX_TOKENS = 512;
 
-    @Value("${batch.indexer.enabled}")
-    private boolean enabled;
-
     @Value("${batch.indexer.transaction.maxResults}")
     private int maxResults;
 
@@ -57,17 +55,20 @@ public class BatchIndexerService {
     @Autowired
     private AlfrescoSolrApiClientFactory alfrescoSolrApiClient;
 
+    @Autowired
+    private OpenSearchConfiguration openSearchConfiguration;
+
     /**
      * Schedules the indexing process according to the cron expression specified in properties.
      */
     @Scheduled(cron = "${batch.indexer.cron}")
     public void index() {
-        if (enabled) {
-            try {
-                internalIndex();
-            } catch (Exception e) {
-                LOG.error("Error during indexing", e);
-            }
+        try {
+            LOG.info("INDEXER: Waiting for OpenSearch to be configured...");
+            openSearchConfiguration.getLatch().await();
+            internalIndex();
+        } catch (Exception e) {
+            LOG.error("Error during indexing", e);
         }
     }
 
@@ -112,7 +113,7 @@ public class BatchIndexerService {
      *
      * @param lastTransactionId the last transaction ID that was indexed
      * @param maxResults the maximum number of results to retrieve
-     * @return a JSON string representing the transactions
+     * @return a JSON node representing the transactions
      * @throws Exception if an error occurs during the API request
      */
     private JsonNode retrieveTransactions(long lastTransactionId, int maxResults) throws Exception {

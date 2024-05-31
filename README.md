@@ -26,18 +26,12 @@ cd docker-opensearch
 docker compose up
 ```
 
-Run the `alfresco-neural-app` app to create required model group, model, pipelines and indexes in OpenSearch.
+Run the `alfresco-neural-app` app to create required model group, model, pipelines and indexes in OpenSearch. One OpenSearch is configured, Batch Indexer will ingest documents in Alfresco Repository.
 
 ```
 cd alfresco-neural-search
 mvn clean package
-java -jar target/neural-search-0.8.0.jar --batch.indexer.enabled=false
-```
-
-Once OpenSearch is ready, stop the `alfresco-neural-app` app and run it again with Batch Indexer Enabled.
-
-```
-java -jar target/neural-search-0.8.0.jar --batch.indexer.enabled=true
+java -jar target/neural-search-0.8.0.jar
 ```
 
 Upload a number of files to Alfresco and wait until they are indexed in OpenSearch.
