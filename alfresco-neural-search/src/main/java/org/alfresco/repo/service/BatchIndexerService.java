@@ -64,7 +64,9 @@ public class BatchIndexerService {
     @Scheduled(cron = "${batch.indexer.cron}")
     public void index() {
         try {
-            LOG.info("INDEXER: Waiting for OpenSearch to be configured...");
+            if (openSearchConfiguration.getLatch().getCount() > 0) {
+                LOG.info("INDEXER: Waiting for OpenSearch to be configured...");
+            }
             openSearchConfiguration.getLatch().await();
             internalIndex();
         } catch (Exception e) {
