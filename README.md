@@ -11,6 +11,55 @@ This project provides following folders:
 * [docker-opensearch](docker-opensearch): regular 2 nodes OpenSearch deployment using TLS
 * [neural-search-ui](neural-search-ui): Sample ADF UI to test semantic, keyword or hybrid search with link to document detail in Alfresco Share
 
+```                                                                                                                             
+┌─────────────────────┐    ┌───────────────┐    ┌────────────────────┐         
+│                     │    │               │    │                    │         
+│     docker-alfresco │    │   alfresco    │    │ docker-opensearch  │         
+│                     │    │   neural      │    │                    │         
+│                     │    │   search      │    │                    │         
+│               REST  │    │               │    │ REST               │         
+│               API   ├────┤               ├────┤ API                │         
+│               8080  │    │               │    │ 9200               │         
+│                     │    │               │    │                    │         
+│                     │    │               │    │                    │         
+│                     │    │   REST API    │    │                    │         
+│                     │    │      8081     │    │                    │         
+└─────────────────────┘    └───────┬───────┘    └────────────────────┘         
+                                   │                                           
+                                   │                                           
+                           ┌───────┴───────┐                                   
+                           │               │                                   
+                           │    neural     │                                   
+                           │   search-ui   │                                   
+                           │               │                                   
+                           │               │                                   
+                           │     4200      │                                   
+                           └───────────────┘                                   
+```
+
+## Endpoints
+
+Alfresco
+
+* Credentials: admin / admin
+* Repository: http://localhost:8080/alfresco
+* Share UI: http://localhost:8080/share
+* ACA UI: http://localhost:8080/
+
+OpenSearch
+
+* Credentials: admin / Alfresco.org.2024
+* OpenSearch Dashboards: https://localhost:5601
+
+Alfresco Neural Search App
+
+* Search REST API: http://localhost:8081
+
+Alfresco Neural Search UI
+
+* Browser app: http://localhost:4200
+
+
 ## Running
 
 Start Alfresco Repository
