@@ -235,7 +235,7 @@ public class BatchIndexerService {
                 indexer.deleteDocumentIfExists(uuid);
                 indexSegments(uuid, node.getId(), contentId, name, splitIntoSegments(JsonUtils.escape(content)));
             } else {
-                LOG.info("Un-indexed: ContentId for node {} has not changed {}", uuid, contentId);
+                LOG.debug("Un-indexed: ContentId for node {} has not changed {}", uuid, contentId);
             }
         }
     }
