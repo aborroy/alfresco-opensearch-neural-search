@@ -10,6 +10,8 @@ services:
       JAVAX_NET_SSL_TRUSTSTORETYPE: "PKCS12"
       JAVAX_NET_SSL_TRUSTSTOREPASSWORD: "truststore"
     depends_on:
+      alfresco:
+        condition: service_healthy
       opensearch-node1:
         condition: service_healthy
       opensearch-node2:

@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.IntStream;
 
 import static org.alfresco.utils.JsonUtils.replaceUnicode;
@@ -35,6 +36,7 @@ public class BatchIndexerService {
     // Alfresco Content Model
     public static final String CM_NAME = "{http://www.alfresco.org/model/content/1.0}name";
     public static final String SYS_STORE_IDENTIFIER = "{http://www.alfresco.org/model/system/1.0}store-identifier";
+    public static final String CONTENT = "{http://www.alfresco.org/model/content/1.0}content";
     public static final String SPACES_STORE = "SpacesStore";
 
     // Max number of tokens handled by the NLP token
@@ -221,12 +223,20 @@ public class BatchIndexerService {
         String uuid = node.getNodeRef().substring(index + 1);
         String name = node.getProperties().get(CM_NAME).toString();
         String storeIdentifier = node.getProperties().get(SYS_STORE_IDENTIFIER).toString();
+        String contentId = ((Map<?, ?>) node.getProperties().get(CONTENT)).get("contentId").toString();
+
+        // Retrieve indexed contentId
+        String contentIdInOS = indexer.getContentId(uuid);
 
         // Avoid processing nodes in ArchiveStore or VersionStore
         if (storeIdentifier.equals(SPACES_STORE)) {
-            String content = alfrescoSolrApiClient.executeGetRequest("textContent?nodeId=" + node.getId());
-            indexer.deleteDocumentIfExists(uuid);
-            indexSegments(uuid, node.getId(), name, splitIntoSegments(JsonUtils.escape(content)));
+            if (!contentId.equals(contentIdInOS)) {
+                String content = alfrescoSolrApiClient.executeGetRequest("textContent?nodeId=" + node.getId());
+                indexer.deleteDocumentIfExists(uuid);
+                indexSegments(uuid, node.getId(), contentId, name, splitIntoSegments(JsonUtils.escape(content)));
+            } else {
+                LOG.info("Un-indexed: ContentId for node {} has not changed {}", uuid, contentId);
+            }
         }
     }
 
@@ -235,16 +245,17 @@ public class BatchIndexerService {
      *
      * @param documentId the ID of the document
      * @param dbid the ID of the document in the database
+     * @param contentId the ID of the content
      * @param documentName the name of the document
      * @param segments the segments to index
      */
-    private void indexSegments(String documentId, Long dbid, String documentName, List<String> segments) {
-        LOG.debug("Indexing {} document parts for {} - {} - {}", segments.size(), dbid, documentId, documentName);
+    private void indexSegments(String documentId, Long dbid, String contentId, String documentName, List<String> segments) {
+        LOG.debug("Indexing {} document parts for {} - {} - {} - {}", segments.size(), dbid, contentId, documentId, documentName);
         IntStream.range(0, segments.size())
                 .parallel()
                 .forEach(i -> {
                     String segmentId = documentId + "_" + i;
-                    indexer.index(segmentId, dbid, documentName, segments.get(i));
+                    indexer.index(segmentId, dbid, contentId, documentName, segments.get(i));
                 });
     }
 

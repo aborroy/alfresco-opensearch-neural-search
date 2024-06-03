@@ -46,21 +46,23 @@ public class Indexer {
      * Indexes a document with the specified UUID and text content into the OpenSearch index.
      *
      * @param uuid the UUID of the document
+     * @param contentId the id of the content
      * @param name the UUID of the document
      * @param text the text content of the document
      */
-    public void index(String uuid, Long dbid, String name, String text) {
+    public void index(String uuid, Long dbid, String contentId, String name, String text) {
         if (!text.isEmpty()) {
             Request request = new Request("POST", "/" + indexName + "/_doc");
             String jsonString = """
                     {
                        "id": "%s",
-                       "dbid": "%s",
+                       "dbid": %s,
+                       "contentId": %s,
                        "name": "%s",
                        "text": "%s"
                     }
                     """;
-            String formattedJson = String.format(jsonString, uuid, dbid, name, text);
+            String formattedJson = String.format(jsonString, uuid, dbid, contentId, name, text);
             request.setEntity(new StringEntity(formattedJson, ContentType.APPLICATION_JSON));
             try {
                 restClient().performRequest(request);
@@ -85,12 +87,13 @@ public class Indexer {
                 String jsonString = """
                         {
                            "id": "%s",
-                           "dbid": "%s",
+                           "dbid": %s,
+                           "contentId": %s,
                            "name": "%s",
                            "text": "%s"
                         }
                         """;
-                String formattedJson = String.format(jsonString, "1", 1L, "verify", "verify");
+                String formattedJson = String.format(jsonString, "1", 1L, "1", "verify", "verify");
                 request.setEntity(new StringEntity(formattedJson, ContentType.APPLICATION_JSON));
                 restClient().performRequest(request);
 
@@ -122,6 +125,36 @@ public class Indexer {
         if (!success) {
             throw new Exception("Failed to verify index status after 3 attempts");
         }
+    }
+
+    public String getContentId(String uuid) throws Exception {
+
+        String contentId = "";
+
+        Request request = new Request("GET", "/" + indexName + "/_search");
+        String jsonString = """
+                {
+                  "query": {
+                    "match": {
+                      "id": "%s_*"
+                    }
+                  }
+                }
+                """;
+        request.setEntity(new StringEntity(String.format(jsonString, uuid), ContentType.APPLICATION_JSON));
+        Response response = restClient().performRequest(request);
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        JsonNode jsonResponse = objectMapper.readTree(response.getEntity().getContent());
+        JsonNode hitsNode = jsonResponse.path("hits").path("hits");
+        if (hitsNode.isArray() && !hitsNode.isEmpty()) {
+            JsonNode firstHitNode = hitsNode.get(0);
+            JsonNode contentIdNode = firstHitNode.path("_source").path("contentId");
+            contentId = contentIdNode.asText();
+        }
+
+        return contentId;
+
     }
 
     /**

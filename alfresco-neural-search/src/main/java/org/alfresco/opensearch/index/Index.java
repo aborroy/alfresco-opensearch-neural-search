@@ -85,6 +85,9 @@ public class Index {
                       "dbid": {
                           "type": "long"
                       },
+                      "contentId": {
+                          "type": "long"
+                      },
                       "name": {
                         "type": "text"
                       },
