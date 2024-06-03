@@ -49,7 +49,7 @@ export class NeuralSearchPluginComponent {
       next: (res) => {
         this._results = res;
         this.loading = false;
-        this.header = this.queryString;
+        this.header = this.queryString + ' (' + this.selectedSearchType + ')';
       }
     });
   }
