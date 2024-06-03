@@ -154,6 +154,20 @@ docker compose up
 
 After a while, services will be available.
 
+## Running PoC for the UI
+
+Sample Angular UI (based in https://github.com/AlfrescoLabs/app-starter-kit) is available in folder [neural-search-ui](neural-search-ui).
+
+It can be started as a regular Angular 18 app.
+
+```
+cd neural-search-ui
+nvm use 18
+npm start
+```
+
+Open the browser and use http://locahost:4200 to test the backend using `Semantic`, `Keyword` or `Hybrid` methods. 
+
 ## Additional Resources
 
 * https://opensearch.org/docs/latest/search-plugins/neural-search-tutorial/
