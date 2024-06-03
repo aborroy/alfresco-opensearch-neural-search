@@ -32,6 +32,7 @@
         <div class="name-text-container">
           <a class="result-link" [href]="'http://localhost:8080/share/page/document-details?nodeRef=workspace://SpacesStore/' + element.id.split('_')[0]" target="_blank">
             {{ element.name }}
+            <mat-icon class="external-link-icon">open_in_new</mat-icon>
           </a>
           <div class="text-content">
             {{ replaceUnicode(element.text) }}
