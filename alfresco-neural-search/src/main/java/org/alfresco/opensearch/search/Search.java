@@ -28,6 +28,9 @@ public class Search {
     @Value("${opensearch.ingest.pipeline.name}")
     private String pipelineName;
 
+    @Value("${opensearch.results.count}")
+    private int resultsCount;
+
     @Autowired
     private OpenSearchConfiguration openSearchConfiguration;
 
@@ -95,7 +98,7 @@ public class Search {
                    "passage_embedding": {
                      "query_text": "%s",
                      "model_id": "%s",
-                     "k": 5
+                     "k": %s
                    }
                  }
                }
@@ -104,7 +107,7 @@ public class Search {
 
         String escapedQuery = JsonUtils.escape(query);
         String modelId = openSearchConfiguration.getModelId();
-        request.setEntity(new StringEntity(String.format(jsonSearchPayload, escapedQuery, modelId), ContentType.APPLICATION_JSON));
+        request.setEntity(new StringEntity(String.format(jsonSearchPayload, escapedQuery, modelId, resultsCount), ContentType.APPLICATION_JSON));
         return search(request);
     }
 
@@ -139,7 +142,7 @@ public class Search {
                         "passage_embedding": {
                           "query_text": "%s",
                           "model_id": "%s",
-                          "k": 5
+                          "k": %s
                         }
                       }
                     }
@@ -151,7 +154,7 @@ public class Search {
 
         String escapedQuery = JsonUtils.escape(query);
         String modelId = openSearchConfiguration.getModelId();
-        request.setEntity(new StringEntity(String.format(jsonSearchPayload, escapedQuery, escapedQuery, modelId), ContentType.APPLICATION_JSON));
+        request.setEntity(new StringEntity(String.format(jsonSearchPayload, escapedQuery, escapedQuery, modelId, resultsCount), ContentType.APPLICATION_JSON));
         return search(request);
     }
 
