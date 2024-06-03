@@ -153,7 +153,7 @@ public class BatchIndexerService {
     private void processRawNode(TransactionNode transactionNode) throws Exception {
         String payload = String.format("""
                 {
-                    "nodeIds": [%d],
+                    "nodeIds": [%s],
                     "includeAclId": false,
                     "includeOwner": false,
                     "includePaths": false,
@@ -178,7 +178,13 @@ public class BatchIndexerService {
                 break;
             // Deleted
             case "d":
-                indexer.deleteDocumentIfExists(transactionNode.getId());
+                int index = transactionNode.getNodeRef().lastIndexOf("/");
+                if (index == -1) {
+                    throw new IllegalArgumentException("Invalid node reference: " + transactionNode.getNodeRef());
+                }
+                String uuid = transactionNode.getNodeRef().substring(index + 1);
+                LOG.debug("Deleting document with NodeRef {}", transactionNode.getNodeRef());
+                indexer.deleteDocument(uuid);
                 break;
             default:
                 throw new IllegalArgumentException("Unknown status: " + transactionNode.getStatus());

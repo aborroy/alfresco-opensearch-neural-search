@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -54,7 +55,7 @@ public class Indexer {
             String jsonString = """
                     {
                        "id": "%s",
-                       "dbid": "%o",
+                       "dbid": "%s",
                        "name": "%s",
                        "text": "%s"
                     }
@@ -84,7 +85,7 @@ public class Indexer {
                 String jsonString = """
                         {
                            "id": "%s",
-                           "dbid": "%o",
+                           "dbid": "%s",
                            "name": "%s",
                            "text": "%s"
                         }
@@ -129,63 +130,74 @@ public class Indexer {
      * @param uuid The UUID of the document to be deleted.
      * @throws IOException If an I/O exception occurs while interacting with OpenSearch.
      */
-    public void deleteDocumentIfExists(String uuid) throws IOException {
-        // Add _* to cover all document parts (as they are split for indexing)
-        deleteDocumentIfExists("id", uuid +"_*");
-    }
-
-    /**
-     * Deletes document segments from the index if they exist, based on the provided dbid.
-     *
-     * @param dbid The dbid of the document to be deleted.
-     * @throws IOException If an I/O exception occurs while interacting with OpenSearch.
-     */
-    public void deleteDocumentIfExists(Long dbid) throws IOException {
-        deleteDocumentIfExists("dbid", dbid.toString());
-    }
-
-    /**
-     * Deletes document segments from the index if they exist, based on the provided field and value.
-     *
-     * @param field The field to match for deletion.
-     * @param value The value of the field to be deleted.
-     * @throws IOException If an I/O exception occurs while interacting with OpenSearch.
-     */
-    private void deleteDocumentIfExists(String field, String value) throws IOException {
+    public void deleteDocumentIfExists(String uuid) throws Exception {
 
         Request request = new Request("GET", "/" + indexName + "/_search");
         String jsonString = """
                 {
                   "query": {
                     "match": {
-                      "%s": "%s"
+                      "id": "%s_*"
                     }
                   }
                 }
                 """;
-        request.setEntity(new StringEntity(String.format(jsonString, field, value), ContentType.APPLICATION_JSON));
+        request.setEntity(new StringEntity(String.format(jsonString, uuid), ContentType.APPLICATION_JSON));
         Response response = restClient().performRequest(request);
 
         ObjectMapper objectMapper = new ObjectMapper();
         JsonNode jsonResponse = objectMapper.readTree(response.getEntity().getContent());
-        int totalValue = jsonResponse.path("hits").path("total").path("value").asInt();
+        int totalValue = jsonResponse.get("hits").get("total").get("value").asInt();
 
         if (totalValue > 0) {
-
-            request = new Request("POST", "/" + indexName + "/_delete_by_query");
-            jsonString = """
-                    {
-                      "query": {
-                        "match": {
-                          "%s": "%s"
-                        }
-                      }
-                    }
-                    """;
-            request.setEntity(new StringEntity(String.format(jsonString, field, value), ContentType.APPLICATION_JSON));
-            restClient().performRequest(request);
-
+            deleteDocument(uuid);
         }
+
     }
+
+    /**
+     * Deletes document segments from the index, based on the provided UUID.
+     * Retries deletion asynchronously 3 times (5 sec delay) to handle concurrent document modifications.
+     *
+     * @param uuid The UUID of the document to be deleted.
+     * @throws IOException If an I/O exception occurs while interacting with OpenSearch.
+     */
+    public void deleteDocument(String uuid) throws Exception {
+        CompletableFuture.supplyAsync(() -> {
+            int attempt = 0;
+            while (attempt < 3) {
+                Request request = new Request("POST", "/" + indexName + "/_delete_by_query");
+                String jsonString = """
+                        {
+                          "query": {
+                            "match": {
+                              "id": "%s_*"
+                            }
+                          }
+                        }
+                        """;
+                request.setEntity(new StringEntity(String.format(jsonString, uuid), ContentType.APPLICATION_JSON));
+                try {
+                    Response response = restClient().performRequest(request);
+                    ObjectMapper objectMapper = new ObjectMapper();
+                    JsonNode jsonResponse = objectMapper.readTree(response.getEntity().getContent());
+                    int deleteCount = jsonResponse.get("total").asInt();
+                    if (deleteCount > 0) {
+                        return null;
+                    }
+                } catch (IOException e) {
+                    LOG.warn(e.getMessage());
+                }
+                attempt++;
+                try {
+                    TimeUnit.SECONDS.sleep(5);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+            return null;
+        });
+    }
+
 
 }
