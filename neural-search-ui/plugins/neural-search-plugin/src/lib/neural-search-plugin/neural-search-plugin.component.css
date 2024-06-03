@@ -22,7 +22,7 @@
 .mat-header-cell,
 .mat-cell {
   padding: 16px;
-  font-size: 10pt;
+  font-size: 12pt;
 }
 
 .hidden-column {
@@ -36,6 +36,7 @@
 
 .result-link {
   text-decoration: none;
+  font-size: 14pt;
   color: #3f51b5;
 }
 

@@ -26,7 +26,7 @@
 
     <ng-container matColumnDef="nameText">
       <mat-header-cell *matHeaderCellDef>
-        <ng-container *ngIf="header !== null && header.trim() !== ''">{{ header }}</ng-container>
+        <ng-container *ngIf="header !== null && header.trim() !== ''">Search results for '{{ header }}'</ng-container>
       </mat-header-cell>
       <mat-cell *matCellDef="let element">
         <div class="name-text-container">
