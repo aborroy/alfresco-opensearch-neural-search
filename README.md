@@ -215,6 +215,8 @@ nvm use 18
 npm start
 ```
 
+![neural-search-ui.png](docs/neural-search-ui.png)
+
 Open the browser and use http://locahost:4200 to test the backend using `Semantic`, `Keyword` or `Hybrid` methods. 
 
 ## Additional Resources
