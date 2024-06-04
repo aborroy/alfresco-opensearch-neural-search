@@ -1,36 +1,47 @@
-# App Starter Kit
+# Alfresco Neural Search UI
 
-Minimal ready-to-use project template pre-configured with [ADF components](https://github.com/Alfresco/alfresco-ng2-components).
+## Overview
 
-![App Shell](./docs/images/app-shell.png)
+The **Alfresco Neural Search UI** project provides a user interface extension for Alfresco Content Services (ACS) that integrates advanced neural search capabilities powered by OpenSearch. 
 
-See [Online Documentation](https://github.com/DenysVuika/adf-starter-acs) for more details.
+## Prerequisites
 
-## Quick start
+Before setting up the Alfresco Neural Search UI extension, ensure you have the following prerequisites:
 
-```sh
+- Alfresco Content Services (ACS) installed and running
+- OpenSearch set up and running
+- Node.js 18 and npm installed
+
+## Installation
+
+### Clone the Repository
+
+```bash
+git clone https://github.com/aborroy/alfresco-opensearch-neural-search.git
+cd alfresco-opensearch-neural-search/neural-search-ui
+```
+
+### Install Dependencies
+
+Use npm to install the necessary dependencies:
+
+```bash
 npm install
+```
+
+
+## Usage
+
+Once installed and configured, the Neural Search UI will enhance the standard search functionality in Alfresco. Users can perform searches through the new interface, which will provide more relevant and context-aware results.
+
+To run the Neural Search UI in development mode with hot-reloading:
+
+```bash
 npm start
 ```
 
-Navigate to `http://localhost:4200/`.
-The app will automatically reload if you change any of the source files.
+Access the development server at `http://localhost:4200`
 
-Running with a custom backend URL:
+![neural-search-ui.png](../docs/neural-search-ui.png)
 
-```sh
-BASE_URL="https://your.alfresco.backend.com" npm start
-```
-
-See [Quickstart](https://denysvuika.github.io/adf-starter-acs/quickstart.html) chapter for more details and options.
-
-## Build
-
-Run `npm run build` to build the project.  
-The build artifacts will be stored in the `dist/` directory.
-
-Use the `npm run build:prod` for a production build.
-
-## Linting
-
-Run `npm run lint` to lint the project.
+Compare results selecting 'Semantic', 'Keywords' or 'Hybrid' before searching.
